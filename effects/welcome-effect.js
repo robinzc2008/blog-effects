@@ -1,3 +1,4 @@
+<!-- 鼠标特效 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // 创建 canvas
