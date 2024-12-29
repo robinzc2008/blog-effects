@@ -11,7 +11,7 @@
         canvas.style.left = '0';
         canvas.style.width = '100%';
         canvas.style.height = '100%';
-        canvas.style.zIndex = '9999';
+        canvas.style.zIndex = '999999';
         canvas.style.pointerEvents = 'none';
         document.body.appendChild(canvas);
         
@@ -54,19 +54,42 @@
             }
         }
         
-        // 鼠标移动效果
-        document.addEventListener('mousemove', function(e) {
-            var currentTime = Date.now();
-            if (currentTime - lastMoveTime > 16) {
-                createParticles(e.clientX, e.clientY, 4, 1.5, 3);
-                lastMoveTime = currentTime;
+        // 统一的事件处理函数
+        function handleMouseEvent(e) {
+            // 检查事件目标
+            if (e.target.tagName.toLowerCase() === 'iframe') {
+                // 获取 iframe 的位置信息
+                const rect = e.target.getBoundingClientRect();
+                // 调整鼠标位置
+                const x = e.clientX;
+                const y = e.clientY;
+                
+                if (e.type === 'mousemove') {
+                    var currentTime = Date.now();
+                    if (currentTime - lastMoveTime > 16) {
+                        createParticles(x, y, 4, 1.5, 3);
+                        lastMoveTime = currentTime;
+                    }
+                } else if (e.type === 'click') {
+                    createParticles(x, y, 35, 4, 4);
+                }
+            } else {
+                // 非 iframe 区域的正常处理
+                if (e.type === 'mousemove') {
+                    var currentTime = Date.now();
+                    if (currentTime - lastMoveTime > 16) {
+                        createParticles(e.clientX, e.clientY, 4, 1.5, 3);
+                        lastMoveTime = currentTime;
+                    }
+                } else if (e.type === 'click') {
+                    createParticles(e.clientX, e.clientY, 35, 4, 4);
+                }
             }
-        });
+        }
         
-        // 点击效果
-        document.addEventListener('click', function(e) {
-            createParticles(e.clientX, e.clientY, 35, 4, 4);
-        });
+        // 添加事件监听器
+        document.addEventListener('mousemove', handleMouseEvent);
+        document.addEventListener('click', handleMouseEvent);
         
         // 动画循环
         function animate() {
