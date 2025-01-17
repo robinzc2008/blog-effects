@@ -2,18 +2,19 @@
     // 注入 CSS
     const style = document.createElement('style');
     style.textContent = `
-        .loading-container {
+        .loading-wrapper {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #222;
+            background: rgba(34, 34, 34, 0.9);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 9999;
-            transition: opacity 0.5s;
+            opacity: 1;
+            transition: opacity 0.3s;
         }
 
         .pl {
@@ -219,45 +220,120 @@
                 stroke-dashoffset: -440;
             }
         }
+
+        .loading-wrapper.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
     `;
     document.head.appendChild(style);
 
-    // 创建加载动画 DOM
-    const loadingHtml = `
-        <div class="loading-container" id="page-loading">
-            <div class="pl">
-                <svg class="pl" viewBox="0 0 200 200" width="200" height="200" xmlns="http://www.w3.org/2000/svg">
-                    <circle class="pl__ring pl__ring--a" cx="100" cy="100" r="82" fill="none" stroke="#f42f25" stroke-width="4" stroke-dasharray="0 257" stroke-dashoffset="0" stroke-linecap="round" />
-                    <circle class="pl__ring pl__ring--b" cx="100" cy="100" r="82" fill="none" stroke="#f49725" stroke-width="4" stroke-dasharray="0 257" stroke-dashoffset="0" stroke-linecap="round" />
-                    <circle class="pl__ring pl__ring--c" cx="100" cy="100" r="82" fill="none" stroke="#255ff4" stroke-width="4" stroke-dasharray="0 257" stroke-dashoffset="0" stroke-linecap="round" />
-                    <circle class="pl__ring pl__ring--d" cx="100" cy="100" r="82" fill="none" stroke="#f42582" stroke-width="4" stroke-dasharray="0 257" stroke-dashoffset="0" stroke-linecap="round" />
-                </svg>
-            </div>
+    // 创建加载动画HTML
+    const loaderHTML = `
+        <div class="loading-wrapper" id="global-loader">
+            <svg class="pl" viewBox="0 0 200 200" width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+                <circle class="pl__ring pl__ring--a" cx="100" cy="100" r="82" fill="none" stroke="#f42f25" stroke-width="4" stroke-dasharray="0 257" stroke-dashoffset="0" stroke-linecap="round"/>
+                <circle class="pl__ring pl__ring--b" cx="100" cy="100" r="82" fill="none" stroke="#f49725" stroke-width="4" stroke-dasharray="0 257" stroke-dashoffset="0" stroke-linecap="round"/>
+                <circle class="pl__ring pl__ring--c" cx="100" cy="100" r="82" fill="none" stroke="#255ff4" stroke-width="4" stroke-dasharray="0 257" stroke-dashoffset="0" stroke-linecap="round"/>
+                <circle class="pl__ring pl__ring--d" cx="100" cy="100" r="82" fill="none" stroke="#f42582" stroke-width="4" stroke-dasharray="0 257" stroke-dashoffset="0" stroke-linecap="round"/>
+            </svg>
         </div>
     `;
 
-    // 确保在 DOM 完全加载后插入
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+    // 插入加载动画
+    document.body.insertAdjacentHTML('afterbegin', loaderHTML);
+    const loader = document.getElementById('global-loader');
+
+    // 显示加载动画
+    function showLoader() {
+        loader.classList.remove('hidden');
     }
 
-    function init() {
-        // 插入 DOM
-        document.body.insertAdjacentHTML('afterbegin', loadingHtml);
+    // 隐藏加载动画
+    function hideLoader() {
+        loader.classList.add('hidden');
+    }
 
-        // 页面加载完成后移除加载动画
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                const loader = document.getElementById('page-loading');
-                if (loader) {
-                    loader.style.opacity = '0';
-                    setTimeout(function() {
-                        loader.style.display = 'none';
-                    }, 500);
-                }
-            }, 1000);
+    // 监听所有资源加载
+    function handleResourceLoad() {
+        // 监听图片加载
+        document.querySelectorAll('img').forEach(img => {
+            if (!img.complete) {
+                showLoader();
+                img.addEventListener('load', () => {
+                    hideLoader();
+                });
+            }
+        });
+
+        // 监听音频加载
+        document.querySelectorAll('audio').forEach(audio => {
+            if (!audio.readyState >= 4) {
+                showLoader();
+                audio.addEventListener('canplaythrough', () => {
+                    hideLoader();
+                });
+            }
+        });
+
+        // 监听视频加载
+        document.querySelectorAll('video').forEach(video => {
+            if (!video.readyState >= 4) {
+                showLoader();
+                video.addEventListener('canplaythrough', () => {
+                    hideLoader();
+                });
+            }
         });
     }
+
+    // 监听动态加载的内容
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) {
+                handleResourceLoad();
+            }
+        });
+    });
+
+    // 开始观察DOM变化
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    // 初始页面加载
+    document.addEventListener('DOMContentLoaded', () => {
+        handleResourceLoad();
+    });
+
+    // 页面完全加载后
+    window.addEventListener('load', () => {
+        setTimeout(hideLoader, 500);
+    });
+
+    // 添加全局AJAX请求监听
+    let originalXHR = window.XMLHttpRequest;
+    function newXHR() {
+        let xhr = new originalXHR();
+        xhr.addEventListener('loadstart', () => showLoader());
+        xhr.addEventListener('loadend', () => hideLoader());
+        return xhr;
+    }
+    window.XMLHttpRequest = newXHR;
+
+    // 添加Fetch请求监听
+    let originalFetch = window.fetch;
+    window.fetch = function() {
+        showLoader();
+        return originalFetch.apply(this, arguments)
+            .then(response => {
+                hideLoader();
+                return response;
+            })
+            .catch(error => {
+                hideLoader();
+                throw error;
+            });
+    };
 })();
